@@ -5,7 +5,6 @@ Análise de dados de vendas da base de exemplo **Northwind**, feita com **SQL (P
 🔗 **[Abrir o painel interativo](https://kauanldutra.github.io/analise-vendas/)**
 
 <img width="1743" height="1051" alt="image" src="https://github.com/user-attachments/assets/276d20c0-b778-4726-822d-684f6f2ac95f" />
-## Perguntas respondidas
 
 1. **Evolução das vendas:** como o faturamento e a quantidade de pedidos mudaram mês a mês, e quais meses tiveram o maior faturamento?
 2. **Vendedores:** como é o desempenho de cada vendedor, classificado em Alto, Médio e Baixo?
@@ -21,10 +20,10 @@ Análise de dados de vendas da base de exemplo **Northwind**, feita com **SQL (P
 
 ## Estrutura do repositório
 
-├── dados/       arquivos CSV exportados das consultas
-├── SQL/         consultas SQL usadas na análise
-├── index.html   painel interativo (publicado com GitHub Pages)
-└── README.md
+- `dados/`: arquivos CSV exportados das consultas
+- `SQL/`: consultas SQL usadas na análise
+- `index.html`: painel interativo (publicado com GitHub Pages)
+- `README.md`: este arquivo
 
 ## Ferramentas
 
