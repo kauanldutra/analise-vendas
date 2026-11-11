@@ -1,0 +1,1448 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Vendas Northwind</title>
+<style>
+/* Layout: faixa azul-marinho no topo com filtro de ano, cartões de indicadores e uma seção por pergunta. Paleta: azul-marinho Northwind + dourado. */
+:root{
+  --bg:#f3f5f9;--panel:#ffffff;--fg:#1d2433;--muted:#5d667a;--line:#dde2ec;--grid:#e8ebf1;--axis:#9aa3b5;
+  --navy:#1f3d73;--navy-2:#7b98c9;--gold:#b8821c;--bar-muted:#c4cad6;--ink:#1b2f55;--on-navy:#ffffff;
+  --ok:#17803d;--bad:#c0362c;--popover:#ffffff;--shadow:0 6px 20px rgba(20,30,60,.14);
+  --band:#1b2f55;--band-fg:#ffffff;--band-muted:rgba(255,255,255,.78);--band-line:rgba(255,255,255,.32);
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:Georgia,"Times New Roman",serif;
+  --radius:10px;color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f131a;--panel:#171d28;--fg:#e6e9ef;--muted:#9aa3b5;--line:#2a3242;--grid:#222a38;--axis:#4a5468;
+  --navy:#86a8e2;--navy-2:#4b6aa1;--gold:#e3b456;--bar-muted:#3a4356;--ink:#b4c9ef;--on-navy:#0f1a30;
+  --ok:#5cc98a;--bad:#f0877c;--popover:#1e2533;--shadow:0 6px 20px rgba(0,0,0,.45);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f131a;--panel:#171d28;--fg:#e6e9ef;--muted:#9aa3b5;--line:#2a3242;--grid:#222a38;--axis:#4a5468;
+  --navy:#86a8e2;--navy-2:#4b6aa1;--gold:#e3b456;--bar-muted:#3a4356;--ink:#b4c9ef;--on-navy:#0f1a30;
+  --ok:#5cc98a;--bad:#f0877c;--popover:#1e2533;--shadow:0 6px 20px rgba(0,0,0,.45);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.45}
+.pv{max-width:1240px;margin:0 auto;display:grid;gap:28px;padding-block:24px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3vw,2.1rem);line-height:1.15;margin:0;text-wrap:balance}
+h2{font-size:1.2rem;font-weight:600;margin:0;color:var(--ink);text-wrap:balance}
+h3{font-size:1rem;font-weight:600;margin:0}
+b{font-weight:600;font-variant-numeric:tabular-nums}
+.band{background:var(--band);color:var(--band-fg);border-radius:var(--radius);padding:24px 22px;display:grid;gap:16px}
+.band-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.filtro{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;color:var(--band-muted)}
+.filtro select{font:inherit;font-size:.9rem;min-width:10rem;padding:6px 10px;border-radius:8px;border:1px solid var(--band-line);background:#ffffff;color:#1d2433}
+.nav{display:flex;flex-wrap:wrap;gap:8px}
+.go{font:inherit;font-size:.85rem;padding:6px 12px;border:1px solid var(--band-line);border-radius:999px;background:transparent;color:var(--band-fg);cursor:pointer}
+.go:hover{border-color:var(--band-fg)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.band :focus-visible{outline-color:var(--band-fg)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:14px}
+.kpi,.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;min-width:0}
+.kpi{display:grid;gap:10px;align-content:start}
+.kpi-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.kpi-value{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3em;font-size:1.65rem;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.cur{font-size:.95rem;font-weight:600}
+.kpi-delta{display:flex;flex-wrap:wrap;align-items:baseline;gap:.35em;font-size:.8rem;color:var(--muted);min-height:1.2em;font-variant-numeric:tabular-nums}
+.sobe{color:var(--ok);font-weight:600}
+.desce{color:var(--bad);font-weight:600}
+.section{display:grid;gap:14px;scroll-margin-top:16px}
+.section-head{display:grid;gap:6px}
+.lead{margin:0;max-width:72ch;color:var(--muted)}
+.lead b{color:var(--fg)}
+.aviso{margin:0;font-size:.8rem;color:var(--muted)}
+.split{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+@media (min-width:900px){.split{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}}
+th.center .sort{white-space:normal;line-height:1.2}
+.card{display:grid;gap:12px;align-content:start}
+.card-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px}
+.card-title{display:grid;gap:6px;min-width:0}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:.8rem;padding:6px 11px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--navy);color:var(--on-navy)}
+.chart{position:relative;min-width:0;min-height:320px}
+.chart-bars{min-height:270px}
+svg{display:block;overflow:visible}
+svg text{font-family:var(--sans);font-size:12px;fill:var(--muted)}
+svg .year{fill:var(--fg);font-weight:600}
+svg .val,svg .lbl{fill:var(--fg)}
+.bar{transition:opacity .2s}
+.faded,.dim .bar{opacity:.35}
+.tip{position:absolute;z-index:3;pointer-events:none;background:var(--popover);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px 10px;font-size:.8rem;display:grid;gap:2px;min-width:11rem;white-space:nowrap}
+.tip-title{color:var(--muted)}
+.tip-row{display:flex;gap:12px}
+.tip-row b{margin-left:auto}
+.off{display:none !important}
+.sw{display:inline-block;width:.65rem;height:.65rem;border-radius:2px;flex:none}
+.sw-line{height:3px;width:1rem}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.search{font:inherit;font-size:.85rem;width:min(100%,16rem);padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+.table-wrap{max-height:28rem;overflow:auto;border-top:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:.85rem;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;z-index:1;background:var(--panel);text-align:left;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line);padding:0}
+th.num{text-align:right}
+th.center,td.center{text-align:center}
+.sort{font:inherit;color:inherit;background:none;border:0;padding:7px 10px;cursor:pointer;width:100%;text-align:inherit;white-space:nowrap}
+th[aria-sort] .sort{color:var(--fg)}
+th[aria-sort="ascending"] .sort::after{content:" \2191"}
+th[aria-sort="descending"] .sort::after{content:" \2193"}
+td{padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num{text-align:right;white-space:nowrap}
+.barcell{display:grid;gap:3px;min-width:8rem}
+.barcell span{text-align:right}
+.barcell i{display:block;height:4px;border-radius:2px;justify-self:start;background:var(--navy)}
+.empty{margin:0;font-size:.85rem;color:var(--muted);padding:10px}
+@media (max-width:640px){table .sec{display:none}}
+.about{border-top:1px solid var(--line);padding-top:14px;font-size:.85rem;color:var(--muted)}
+.about summary{cursor:pointer;color:var(--fg);font-size:.95rem}
+.about dl{display:grid;grid-template-columns:minmax(0,12rem) minmax(0,1fr);gap:6px 16px;margin:14px 0 0;max-width:72ch}
+@media (max-width:640px){.about dl{grid-template-columns:minmax(0,1fr)}}
+.about dt{color:var(--fg);font-weight:600}
+.about dd{margin:0}
+@media (prefers-reduced-motion: reduce){.bar{transition:none}}
+</style>
+</head>
+<body>
+<div class="pv">
+  <header class="band" id="topo">
+    <h1>Painel de Vendas Northwind</h1>
+    <div class="band-row">
+      <label class="filtro" for="filtro-ano">Ano
+        <select id="filtro-ano" aria-label="Filtrar por ano"></select>
+      </label>
+      <nav class="nav" aria-label="Seções do painel">
+        <button type="button" class="go" data-go="evolucao">Evolução mensal</button>
+        <button type="button" class="go" data-go="produtos">Produtos</button>
+        <button type="button" class="go" data-go="clientes">Clientes</button>
+        <button type="button" class="go" data-go="vendedores">Vendedores</button>
+      </nav>
+    </div>
+  </header>
+
+  <section class="kpis" aria-label="Indicadores">
+    <div class="kpi">
+      <span class="kpi-label">Faturamento</span>
+      <span class="kpi-value"><span class="cur">R$</span><span id="kpi-fat">—</span></span>
+      <span class="kpi-delta" id="delta-fat">—</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Pedidos</span>
+      <span class="kpi-value"><span id="kpi-ped">—</span></span>
+      <span class="kpi-delta" id="delta-ped">—</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Ticket médio</span>
+      <span class="kpi-value"><span class="cur">R$</span><span id="kpi-ticket">—</span></span>
+      <span class="kpi-delta" id="delta-ticket">—</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Melhor mês</span>
+      <span class="kpi-value"><span class="cur">R$</span><span id="kpi-melhor">—</span></span>
+      <span class="kpi-delta" id="sub-melhor">—</span>
+    </div>
+  </section>
+
+  <section class="section" id="evolucao">
+    <h2>Evolução mensal</h2>
+    <div class="split">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">
+            <h3>Vendas por mês</h3>
+            <div class="legend" aria-label="Legenda">
+              <span><i class="sw" style="background:var(--navy)"></i>Valor do mês</span>
+              <span><i class="sw sw-line" style="background:var(--gold)"></i>Onda da evolução</span>
+              <span><i class="sw" style="background:var(--bar-muted)"></i>Mês incompleto</span>
+            </div>
+          </div>
+          <div class="seg" role="group" aria-label="Métrica do gráfico mensal" data-state="mesMetric" data-redraw="mensal">
+            <button type="button" data-value="faturamento" aria-pressed="true">Faturamento</button>
+            <button type="button" data-value="pedidos" aria-pressed="false">Pedidos</button>
+            <button type="button" data-value="ticket_medio" aria-pressed="false">Ticket médio</button>
+          </div>
+        </div>
+        <div class="chart" id="chart-mensal" role="img" aria-label="Vendas por mês"></div>
+      </div>
+      <div class="card">
+        <h3>Resumo por ano</h3>
+        <div class="table-wrap">
+          <table data-table="anual">
+            <thead><tr>
+              <th data-field="ano" aria-sort="ascending"><button type="button" class="sort">Ano</button></th>
+              <th data-field="meses" class="center"><button type="button" class="sort">Quantidade de meses</button></th>
+              <th data-field="faturamento" class="num"><button type="button" class="sort">Faturamento</button></th>
+              <th data-field="media_mensal" class="num"><button type="button" class="sort">Média mensal</button></th>
+            </tr></thead>
+            <tbody data-tbody="anual"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="produtos">
+    <div class="section-head">
+      <h2>Receita por produto</h2>
+      <p class="lead">Os 10 maiores somam <b id="lead-top10">—</b> da receita. <b id="lead-lider">—</b> lidera com <b id="lead-lider-share">—</b>.</p>
+      <p class="aviso off" data-aviso>Esta consulta não separa por ano: valores do período todo.</p>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3>Produtos</h3>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Quantos produtos mostrar" data-state="prodLimit" data-redraw="tabelas">
+            <button type="button" data-value="10" aria-pressed="true">Top 10</button>
+            <button type="button" data-value="all" aria-pressed="false">Todos</button>
+          </div>
+          <input type="search" class="search" id="busca-produtos" data-table="prod" placeholder="Buscar produto" aria-label="Buscar produto">
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table data-table="prod">
+          <thead><tr>
+            <th data-field="produto"><button type="button" class="sort">Produto</button></th>
+            <th data-field="total_vendido" class="num" aria-sort="descending"><button type="button" class="sort">Receita</button></th>
+            <th data-field="quantidade" class="num"><button type="button" class="sort">Qtd.</button></th>
+            <th data-field="preco_medio" class="num sec"><button type="button" class="sort">Preço médio</button></th>
+            <th data-field="participacao" class="num"><button type="button" class="sort">% da receita</button></th>
+          </tr></thead>
+          <tbody data-tbody="prod"></tbody>
+        </table>
+        <p class="empty off" data-empty="prod">Nenhum produto encontrado.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="clientes">
+    <div class="section-head">
+      <h2>Desempenho dos clientes</h2>
+      <p class="lead">Os 3 maiores concentram <b id="lead-top3">—</b> do faturamento da lista de <b id="lead-clientes">—</b> clientes.</p>
+      <p class="aviso off" data-aviso>Esta consulta não separa por ano: valores do período todo.</p>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3>Clientes</h3>
+        <input type="search" class="search" id="busca-clientes" data-table="cli" placeholder="Buscar cliente ou país" aria-label="Buscar cliente ou país">
+      </div>
+      <div class="table-wrap">
+        <table data-table="cli">
+          <thead><tr>
+            <th data-field="nome_do_cliente"><button type="button" class="sort">Cliente</button></th>
+            <th data-field="pais"><button type="button" class="sort">País</button></th>
+            <th data-field="pedidos_realizados" class="num"><button type="button" class="sort">Pedidos</button></th>
+            <th data-field="faturamento_total" class="num" aria-sort="descending"><button type="button" class="sort">Faturamento</button></th>
+            <th data-field="ticket_medio" class="num sec"><button type="button" class="sort">Ticket médio</button></th>
+            <th data-field="participacao" class="num"><button type="button" class="sort">% do total</button></th>
+          </tr></thead>
+          <tbody data-tbody="cli"></tbody>
+        </table>
+        <p class="empty off" data-empty="cli">Nenhum cliente encontrado.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="vendedores">
+    <div class="section-head">
+      <h2>Desempenho dos vendedores</h2>
+      <p class="lead"><b id="lead-vend">—</b> lidera com <b id="lead-vend-share">—</b> do faturamento.</p>
+      <p class="aviso off" data-aviso>Esta consulta não separa por ano: valores do período todo.</p>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <h3>Ranking de vendedores</h3>
+          <div class="legend" aria-label="Classificação">
+            <span><i class="sw" style="background:var(--navy)"></i>Alto</span>
+            <span><i class="sw" style="background:var(--navy-2)"></i>Médio</span>
+            <span><i class="sw" style="background:var(--bar-muted)"></i>Baixo</span>
+          </div>
+        </div>
+        <div class="seg" role="group" aria-label="Métrica do ranking de vendedores" data-state="vendMetric" data-redraw="vend">
+          <button type="button" data-value="faturamento_total" aria-pressed="true">Faturamento</button>
+          <button type="button" data-value="pedidos_realizados_total" aria-pressed="false">Pedidos</button>
+          <button type="button" data-value="ticket_medio" aria-pressed="false">Ticket médio</button>
+        </div>
+      </div>
+      <div class="chart chart-bars" id="chart-vend" role="img" aria-label="Ranking de vendedores"></div>
+    </div>
+  </section>
+
+  <details class="about" id="sobre">
+    <summary>Sobre os dados</summary>
+    <dl>
+      <dt>Origem</dt><dd>Quatro arquivos CSV exportados das consultas SQL na base Northwind, já incluídos neste arquivo. Só a evolução mensal tem ano, por isso o filtro de ano muda os cartões e a evolução mensal.</dd>
+      <dt>Mês incompleto</dt><dd>A base termina no início de mai/1998.</dd>
+      <dt>Clientes</dt><dd>A lista traz só quem fez 10 ou mais pedidos.</dd>
+      <dt>Moeda</dt><dd>Dados fictícios, com valores exibidos em R$.</dd>
+    </dl>
+  </details>
+</div>
+
+<script>
+const DADOS = {
+ "evolucao": [
+  {
+   "ano": 1998,
+   "mes": 4,
+   "faturamento": 123798.6822555472,
+   "pedidos": 74
+  },
+  {
+   "ano": 1998,
+   "mes": 3,
+   "faturamento": 104854.15500015698,
+   "pedidos": 73
+  },
+  {
+   "ano": 1998,
+   "mes": 2,
+   "faturamento": 99415.2873830082,
+   "pedidos": 54
+  },
+  {
+   "ano": 1998,
+   "mes": 1,
+   "faturamento": 94222.1102069358,
+   "pedidos": 55
+  },
+  {
+   "ano": 1997,
+   "mes": 12,
+   "faturamento": 71398.42846388379,
+   "pedidos": 48
+  },
+  {
+   "ano": 1997,
+   "mes": 10,
+   "faturamento": 66749.22577572716,
+   "pedidos": 38
+  },
+  {
+   "ano": 1997,
+   "mes": 1,
+   "faturamento": 61258.0701679784,
+   "pedidos": 33
+  },
+  {
+   "ano": 1997,
+   "mes": 9,
+   "faturamento": 55629.24240174934,
+   "pedidos": 37
+  },
+  {
+   "ano": 1997,
+   "mes": 5,
+   "faturamento": 53781.28982514166,
+   "pedidos": 32
+  },
+  {
+   "ano": 1997,
+   "mes": 4,
+   "faturamento": 53032.95238894149,
+   "pedidos": 31
+  },
+  {
+   "ano": 1997,
+   "mes": 7,
+   "faturamento": 51020.85751860481,
+   "pedidos": 33
+  },
+  {
+   "ano": 1997,
+   "mes": 8,
+   "faturamento": 47287.66968825523,
+   "pedidos": 33
+  },
+  {
+   "ano": 1996,
+   "mes": 11,
+   "faturamento": 45600.04521113701,
+   "pedidos": 25
+  },
+  {
+   "ano": 1996,
+   "mes": 12,
+   "faturamento": 45239.630493214434,
+   "pedidos": 31
+  },
+  {
+   "ano": 1997,
+   "mes": 11,
+   "faturamento": 43533.80876756514,
+   "pedidos": 34
+  },
+  {
+   "ano": 1997,
+   "mes": 3,
+   "faturamento": 38547.22010972678,
+   "pedidos": 30
+  },
+  {
+   "ano": 1997,
+   "mes": 2,
+   "faturamento": 38483.6349503243,
+   "pedidos": 29
+  },
+  {
+   "ano": 1996,
+   "mes": 10,
+   "faturamento": 37515.72494547888,
+   "pedidos": 26
+  },
+  {
+   "ano": 1997,
+   "mes": 6,
+   "faturamento": 36362.80233480245,
+   "pedidos": 30
+  },
+  {
+   "ano": 1996,
+   "mes": 7,
+   "faturamento": 27861.89512966156,
+   "pedidos": 22
+  },
+  {
+   "ano": 1996,
+   "mes": 9,
+   "faturamento": 26381.400132587554,
+   "pedidos": 23
+  },
+  {
+   "ano": 1996,
+   "mes": 8,
+   "faturamento": 25485.275070743264,
+   "pedidos": 25
+  },
+  {
+   "ano": 1998,
+   "mes": 5,
+   "faturamento": 18333.630432192596,
+   "pedidos": 14
+  }
+ ],
+ "produtos": [
+  {
+   "produto": "Côte de Blaye",
+   "total_vendido": 141396.7356273254,
+   "quantidade": 623
+  },
+  {
+   "produto": "Thüringer Rostbratwurst",
+   "total_vendido": 80368.6724385033,
+   "quantidade": 746
+  },
+  {
+   "produto": "Raclette Courdavault",
+   "total_vendido": 71155.69990943,
+   "quantidade": 1496
+  },
+  {
+   "produto": "Tarte au sucre",
+   "total_vendido": 47234.969978504174,
+   "quantidade": 1083
+  },
+  {
+   "produto": "Camembert Pierrot",
+   "total_vendido": 46825.48029542655,
+   "quantidade": 1577
+  },
+  {
+   "produto": "Gnocchi di nonna Alice",
+   "total_vendido": 42593.0598222503,
+   "quantidade": 1263
+  },
+  {
+   "produto": "Manjimup Dried Apples",
+   "total_vendido": 41819.65024582073,
+   "quantidade": 886
+  },
+  {
+   "produto": "Alice Mutton",
+   "total_vendido": 32698.380216373203,
+   "quantidade": 978
+  },
+  {
+   "produto": "Carnarvon Tigers",
+   "total_vendido": 29171.874963399023,
+   "quantidade": 539
+  },
+  {
+   "produto": "Rössle Sauerkraut",
+   "total_vendido": 25696.63978933155,
+   "quantidade": 640
+  },
+  {
+   "produto": "Mozzarella di Giovanni",
+   "total_vendido": 24900.12939154029,
+   "quantidade": 806
+  },
+  {
+   "produto": "Ipoh Coffee",
+   "total_vendido": 23526.699842727183,
+   "quantidade": 580
+  },
+  {
+   "produto": "Sir Rodney's Marmalade",
+   "total_vendido": 22563.36029526442,
+   "quantidade": 313
+  },
+  {
+   "produto": "Uncle Bob's Organic Dried Pears",
+   "total_vendido": 22044.29998782277,
+   "quantidade": 763
+  },
+  {
+   "produto": "Wimmers gute Semmelknödel",
+   "total_vendido": 21957.96757586673,
+   "quantidade": 740
+  },
+  {
+   "produto": "Gudbrandsdalsost",
+   "total_vendido": 21942.359829037785,
+   "quantidade": 714
+  },
+  {
+   "produto": "Ikura",
+   "total_vendido": 20867.339869279265,
+   "quantidade": 742
+  },
+  {
+   "produto": "Perth Pasties",
+   "total_vendido": 20574.169932212233,
+   "quantidade": 722
+  },
+  {
+   "produto": "Gumbär Gummibärchen",
+   "total_vendido": 19849.14417082793,
+   "quantidade": 753
+  },
+  {
+   "produto": "Flotemysost",
+   "total_vendido": 19551.025301235914,
+   "quantidade": 1057
+  },
+  {
+   "produto": "Boston Crab Meat",
+   "total_vendido": 17910.62964561701,
+   "quantidade": 1103
+  },
+  {
+   "produto": "Pâté chinois",
+   "total_vendido": 17426.400270086524,
+   "quantidade": 903
+  },
+  {
+   "produto": "Pavlova",
+   "total_vendido": 17215.775862881364,
+   "quantidade": 1158
+  },
+  {
+   "produto": "Vegie-spread",
+   "total_vendido": 16701.095047264098,
+   "quantidade": 445
+  },
+  {
+   "produto": "Chang",
+   "total_vendido": 16355.959905386866,
+   "quantidade": 1057
+  },
+  {
+   "produto": "Lakkalikööri",
+   "total_vendido": 15760.439892498254,
+   "quantidade": 981
+  },
+  {
+   "produto": "Schoggi Schokolade",
+   "total_vendido": 15099.875288009644,
+   "quantidade": 365
+  },
+  {
+   "produto": "Gorgonzola Telino",
+   "total_vendido": 14920.874979393557,
+   "quantidade": 1397
+  },
+  {
+   "produto": "Sirop d'érable",
+   "total_vendido": 14352.599874171614,
+   "quantidade": 603
+  },
+  {
+   "produto": "Louisiana Fiery Hot Pepper Sauce",
+   "total_vendido": 13869.8894459071,
+   "quantidade": 745
+  },
+  {
+   "produto": "Steeleye Stout",
+   "total_vendido": 13643.999849504233,
+   "quantidade": 883
+  },
+  {
+   "produto": "Inlagd Sill",
+   "total_vendido": 13458.459957247376,
+   "quantidade": 805
+  },
+  {
+   "produto": "Nord-Ost Matjeshering",
+   "total_vendido": 13424.197395977713,
+   "quantidade": 612
+  },
+  {
+   "produto": "Queso Cabrales",
+   "total_vendido": 12901.769848639071,
+   "quantidade": 706
+  },
+  {
+   "produto": "Chai",
+   "total_vendido": 12788.099919730425,
+   "quantidade": 828
+  },
+  {
+   "produto": "Northwoods Cranberry Sauce",
+   "total_vendido": 12771.999989151955,
+   "quantidade": 372
+  },
+  {
+   "produto": "Chartreuse verte",
+   "total_vendido": 12294.539875394701,
+   "quantidade": 793
+  },
+  {
+   "produto": "Queso Manchego La Pastora",
+   "total_vendido": 12257.659973632693,
+   "quantidade": 344
+  },
+  {
+   "produto": "Outback Lager",
+   "total_vendido": 10672.649988468736,
+   "quantidade": 817
+  },
+  {
+   "produto": "Gula Malacca",
+   "total_vendido": 9915.945213678779,
+   "quantidade": 601
+  },
+  {
+   "produto": "Maxilaku",
+   "total_vendido": 9244.599993154407,
+   "quantidade": 520
+  },
+  {
+   "produto": "Original Frankfurter grüne Soße",
+   "total_vendido": 9171.629909630567,
+   "quantidade": 791
+  },
+  {
+   "produto": "Sir Rodney's Scones",
+   "total_vendido": 9103.999990910292,
+   "quantidade": 1016
+  },
+  {
+   "produto": "Scottish Longbreads",
+   "total_vendido": 8713.999996185303,
+   "quantidade": 799
+  },
+  {
+   "produto": "Jack's New England Clam Chowder",
+   "total_vendido": 8680.344671508035,
+   "quantidade": 981
+  },
+  {
+   "produto": "Singaporean Hokkien Fried Mee",
+   "total_vendido": 8574.999964818358,
+   "quantidade": 697
+  },
+  {
+   "produto": "Chef Anton's Cajun Seasoning",
+   "total_vendido": 8567.900032654405,
+   "quantidade": 453
+  },
+  {
+   "produto": "Mascarpone Fabioli",
+   "total_vendido": 8404.16000310421,
+   "quantidade": 297
+  },
+  {
+   "produto": "Rhönbräu Klosterbier",
+   "total_vendido": 8177.48995614484,
+   "quantidade": 1155
+  },
+  {
+   "produto": "Tofu",
+   "total_vendido": 7991.490051554795,
+   "quantidade": 404
+  },
+  {
+   "produto": "Ravioli Angelo",
+   "total_vendido": 7661.550061494112,
+   "quantidade": 434
+  },
+  {
+   "produto": "Mishi Kobe Niku",
+   "total_vendido": 7226.499960970878,
+   "quantidade": 95
+  },
+  {
+   "produto": "Grandma's Boysenberry Spread",
+   "total_vendido": 7136.99999878183,
+   "quantidade": 301
+  },
+  {
+   "produto": "Gustaf's Knäckebröd",
+   "total_vendido": 7122.35998642087,
+   "quantidade": 348
+  },
+  {
+   "produto": "Sasquatch Ale",
+   "total_vendido": 6350.399966046214,
+   "quantidade": 506
+  },
+  {
+   "produto": "Spegesild",
+   "total_vendido": 5883.000060315728,
+   "quantidade": 548
+  },
+  {
+   "produto": "Escargots de Bourgogne",
+   "total_vendido": 5881.6750394031405,
+   "quantidade": 534
+  },
+  {
+   "produto": "Teatime Chocolate Biscuits",
+   "total_vendido": 5862.619961394668,
+   "quantidade": 723
+  },
+  {
+   "produto": "Chef Anton's Gumbo Mix",
+   "total_vendido": 5347.200056656822,
+   "quantidade": 298
+  },
+  {
+   "produto": "Konbu",
+   "total_vendido": 4960.440008676648,
+   "quantidade": 891
+  },
+  {
+   "produto": "Tourtière",
+   "total_vendido": 4728.237450592593,
+   "quantidade": 755
+  },
+  {
+   "produto": "Tunnbröd",
+   "total_vendido": 4601.699954122305,
+   "quantidade": 580
+  },
+  {
+   "produto": "Guaraná Fantástica",
+   "total_vendido": 4504.364968075454,
+   "quantidade": 1125
+  },
+  {
+   "produto": "Rogede sild",
+   "total_vendido": 4338.174985330925,
+   "quantidade": 508
+  },
+  {
+   "produto": "Röd Kaviar",
+   "total_vendido": 3997.1999941952527,
+   "quantidade": 293
+  },
+  {
+   "produto": "Zaanse koeken",
+   "total_vendido": 3958.0799874429404,
+   "quantidade": 485
+  },
+  {
+   "produto": "NuNuCa Nuß-Nougat-Creme",
+   "total_vendido": 3704.3999701574444,
+   "quantidade": 318
+  },
+  {
+   "produto": "Valkoinen suklaa",
+   "total_vendido": 3437.68749892246,
+   "quantidade": 235
+  },
+  {
+   "produto": "Louisiana Hot Spiced Okra",
+   "total_vendido": 3383.000052154064,
+   "quantidade": 239
+  },
+  {
+   "produto": "Filo Mix",
+   "total_vendido": 3232.949990465492,
+   "quantidade": 500
+  },
+  {
+   "produto": "Aniseed Syrup",
+   "total_vendido": 3043.999999463558,
+   "quantidade": 328
+  },
+  {
+   "produto": "Gravad lax",
+   "total_vendido": 2688.3999648988247,
+   "quantidade": 125
+  },
+  {
+   "produto": "Longlife Tofu",
+   "total_vendido": 2432.4999990463257,
+   "quantidade": 297
+  },
+  {
+   "produto": "Laughing Lumberjack Lager",
+   "total_vendido": 2396.799994945526,
+   "quantidade": 184
+  },
+  {
+   "produto": "Genen Shouyu",
+   "total_vendido": 1784.824990035966,
+   "quantidade": 122
+  },
+  {
+   "produto": "Geitost",
+   "total_vendido": 1648.1249991375953,
+   "quantidade": 755
+  },
+  {
+   "produto": "Chocolade",
+   "total_vendido": 1368.7124797306956,
+   "quantidade": 138
+  }
+ ],
+ "clientes": [
+  {
+   "nome_do_cliente": "Horst Kloss",
+   "pais": "Germany",
+   "pedidos_realizados": 28,
+   "faturamento_total": 110277.30503039382
+  },
+  {
+   "nome_do_cliente": "Roland Mendel",
+   "pais": "Austria",
+   "pedidos_realizados": 30,
+   "faturamento_total": 104874.97814367746
+  },
+  {
+   "nome_do_cliente": "Jose Pavarotti",
+   "pais": "USA",
+   "pedidos_realizados": 31,
+   "faturamento_total": 104361.94954039395
+  },
+  {
+   "nome_do_cliente": "Paula Wilson",
+   "pais": "USA",
+   "pedidos_realizados": 18,
+   "faturamento_total": 51097.80082826822
+  },
+  {
+   "nome_do_cliente": "Patricia McKenna",
+   "pais": "Ireland",
+   "pedidos_realizados": 19,
+   "faturamento_total": 49979.90508149548
+  },
+  {
+   "nome_do_cliente": "Mario Pontes",
+   "pais": "Brazil",
+   "pedidos_realizados": 14,
+   "faturamento_total": 32841.369948457475
+  },
+  {
+   "nome_do_cliente": "Philip Cramer",
+   "pais": "Germany",
+   "pedidos_realizados": 14,
+   "faturamento_total": 30908.383872538416
+  },
+  {
+   "nome_do_cliente": "Maria Larsson",
+   "pais": "Sweden",
+   "pedidos_realizados": 19,
+   "faturamento_total": 29567.562490026656
+  },
+  {
+   "nome_do_cliente": "Jean Fresnière",
+   "pais": "Canada",
+   "pedidos_realizados": 13,
+   "faturamento_total": 28872.19015611842
+  },
+  {
+   "nome_do_cliente": "Karl Jablonski",
+   "pais": "USA",
+   "pedidos_realizados": 14,
+   "faturamento_total": 27363.604900210797
+  },
+  {
+   "nome_do_cliente": "Peter Franken",
+   "pais": "Germany",
+   "pedidos_realizados": 15,
+   "faturamento_total": 26656.559403990017
+  },
+  {
+   "nome_do_cliente": "Lúcia Carvalho",
+   "pais": "Brazil",
+   "pedidos_realizados": 13,
+   "faturamento_total": 25717.497604973578
+  },
+  {
+   "nome_do_cliente": "Christina Berglund",
+   "pais": "Sweden",
+   "pedidos_realizados": 18,
+   "faturamento_total": 24927.577430965972
+  },
+  {
+   "nome_do_cliente": "Pascale Cartrain",
+   "pais": "Belgium",
+   "pedidos_realizados": 12,
+   "faturamento_total": 24088.780281318428
+  },
+  {
+   "nome_do_cliente": "Georg Pipps",
+   "pais": "Austria",
+   "pedidos_realizados": 10,
+   "faturamento_total": 23128.86001497373
+  },
+  {
+   "nome_do_cliente": "Carlos Hernández",
+   "pais": "Venezuela",
+   "pedidos_realizados": 18,
+   "faturamento_total": 22768.76392572349
+  },
+  {
+   "nome_do_cliente": "Laurence Lebihan",
+   "pais": "France",
+   "pedidos_realizados": 17,
+   "faturamento_total": 21963.252461684533
+  },
+  {
+   "nome_do_cliente": "Elizabeth Lincoln",
+   "pais": "Canada",
+   "pedidos_realizados": 14,
+   "faturamento_total": 20801.59995229095
+  },
+  {
+   "nome_do_cliente": "Michael Holz",
+   "pais": "Switzerland",
+   "pedidos_realizados": 10,
+   "faturamento_total": 19343.778920320852
+  },
+  {
+   "nome_do_cliente": "Renate Messner",
+   "pais": "Germany",
+   "pedidos_realizados": 15,
+   "faturamento_total": 19261.409954871837
+  },
+  {
+   "nome_do_cliente": "Frédérique Citeaux",
+   "pais": "France",
+   "pedidos_realizados": 11,
+   "faturamento_total": 18534.080079345105
+  },
+  {
+   "nome_do_cliente": "Howard Snyder",
+   "pais": "USA",
+   "pedidos_realizados": 11,
+   "faturamento_total": 18507.449970926566
+  },
+  {
+   "nome_do_cliente": "Felipe Izquierdo",
+   "pais": "Venezuela",
+   "pedidos_realizados": 12,
+   "faturamento_total": 16476.56491531938
+  },
+  {
+   "nome_do_cliente": "Carlos González",
+   "pais": "Venezuela",
+   "pedidos_realizados": 14,
+   "faturamento_total": 16076.599920950532
+  },
+  {
+   "nome_do_cliente": "Palle Ibsen",
+   "pais": "Denmark",
+   "pedidos_realizados": 11,
+   "faturamento_total": 15843.924896007406
+  },
+  {
+   "nome_do_cliente": "Pirkko Koskitalo",
+   "pais": "Finland",
+   "pedidos_realizados": 15,
+   "faturamento_total": 15648.702585553974
+  },
+  {
+   "nome_do_cliente": "Rene Phillips",
+   "pais": "USA",
+   "pedidos_realizados": 10,
+   "faturamento_total": 15177.462503358722
+  },
+  {
+   "nome_do_cliente": "Thomas Hardy",
+   "pais": "UK",
+   "pedidos_realizados": 13,
+   "faturamento_total": 13390.649973928183
+  },
+  {
+   "nome_do_cliente": "Henriette Pfalzheim",
+   "pais": "Germany",
+   "pedidos_realizados": 10,
+   "faturamento_total": 12496.1999632217
+  },
+  {
+   "nome_do_cliente": "Janete Limeira",
+   "pais": "Brazil",
+   "pedidos_realizados": 11,
+   "faturamento_total": 12450.800013110042
+  },
+  {
+   "nome_do_cliente": "José Pedro Freyre",
+   "pais": "Spain",
+   "pedidos_realizados": 10,
+   "faturamento_total": 11446.359954776763
+  },
+  {
+   "nome_do_cliente": "Miguel Angel Paolino",
+   "pais": "Mexico",
+   "pedidos_realizados": 10,
+   "faturamento_total": 10812.150033950806
+  },
+  {
+   "nome_do_cliente": "Rita Müller",
+   "pais": "Germany",
+   "pedidos_realizados": 10,
+   "faturamento_total": 9588.424962970987
+  },
+  {
+   "nome_do_cliente": "Annette Roulet",
+   "pais": "France",
+   "pedidos_realizados": 14,
+   "faturamento_total": 9328.200014907121
+  },
+  {
+   "nome_do_cliente": "Mary Saveley",
+   "pais": "France",
+   "pedidos_realizados": 10,
+   "faturamento_total": 9182.42987764746
+  },
+  {
+   "nome_do_cliente": "Giovanni Rovelli",
+   "pais": "Italy",
+   "pedidos_realizados": 10,
+   "faturamento_total": 7176.214951009528
+  },
+  {
+   "nome_do_cliente": "Maurizio Moroni",
+   "pais": "Italy",
+   "pedidos_realizados": 12,
+   "faturamento_total": 7048.239968932271
+  },
+  {
+   "nome_do_cliente": "Helen Bennett",
+   "pais": "UK",
+   "pedidos_realizados": 10,
+   "faturamento_total": 6146.299984931946
+  },
+  {
+   "nome_do_cliente": "Victoria Ashworth",
+   "pais": "UK",
+   "pedidos_realizados": 10,
+   "faturamento_total": 6089.899990081787
+  }
+ ],
+ "vendedores": [
+  {
+   "nome_funcionario": "Margaret Peacock",
+   "classificacao_vendedor": "Alto",
+   "pedidos_realizados_total": 156,
+   "faturamento_total": 232890.84598203757
+  },
+  {
+   "nome_funcionario": "Janet Leverling",
+   "classificacao_vendedor": "Alto",
+   "pedidos_realizados_total": 127,
+   "faturamento_total": 202812.84238787484
+  },
+  {
+   "nome_funcionario": "Nancy Davolio",
+   "classificacao_vendedor": "Alto",
+   "pedidos_realizados_total": 123,
+   "faturamento_total": 192107.60465689204
+  },
+  {
+   "nome_funcionario": "Andrew Fuller",
+   "classificacao_vendedor": "Alto",
+   "pedidos_realizados_total": 96,
+   "faturamento_total": 166537.7552874248
+  },
+  {
+   "nome_funcionario": "Laura Callahan",
+   "classificacao_vendedor": "Medio",
+   "pedidos_realizados_total": 104,
+   "faturamento_total": 126862.2774778762
+  },
+  {
+   "nome_funcionario": "Robert King",
+   "classificacao_vendedor": "Medio",
+   "pedidos_realizados_total": 72,
+   "faturamento_total": 124568.23485103557
+  },
+  {
+   "nome_funcionario": "Anne Dodsworth",
+   "classificacao_vendedor": "Baixo",
+   "pedidos_realizados_total": 43,
+   "faturamento_total": 77308.06623830303
+  },
+  {
+   "nome_funcionario": "Michael Suyama",
+   "classificacao_vendedor": "Baixo",
+   "pedidos_realizados_total": 67,
+   "faturamento_total": 73913.12937797053
+  },
+  {
+   "nome_funcionario": "Steven Buchanan",
+   "classificacao_vendedor": "Baixo",
+   "pedidos_realizados_total": 42,
+   "faturamento_total": 68792.28239394959
+  }
+ ]
+};
+
+(function () {
+  'use strict';
+  const NOMES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const nf = (o) => new Intl.NumberFormat('pt-BR', o);
+  const F = {
+    brl: nf({style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2}),
+    brlc: nf({style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1}),
+    num2: nf({minimumFractionDigits: 2, maximumFractionDigits: 2}),
+    int: nf({maximumFractionDigits: 0}),
+    pct: nf({style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1}),
+  };
+  const fmt = (k, v) => (k === 'text' ? String(v) : (Number.isFinite(Number(v)) ? F[k].format(Number(v)) : '—'));
+  const soma = (rows, k) => rows.reduce((s, d) => s + d[k], 0);
+  const maxBy = (rows, k) => rows.reduce((a, b) => (b[k] > a[k] ? b : a));
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const setText = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+
+  // ---------- cálculos ----------
+  const mensal = DADOS.evolucao.slice().sort((a, b) => a.ano - b.ano || a.mes - b.mes).map((d, i, arr) => ({
+    ...d, rotulo: `${NOMES[d.mes - 1]}/${d.ano}`, ticket_medio: d.faturamento / d.pedidos, parcial: i === arr.length - 1,
+  }));
+
+  const faixa = (ms) => (ms.length === 1 ? NOMES[ms[0] - 1] : `${NOMES[ms[0] - 1]}–${NOMES[ms[ms.length - 1] - 1]}`);
+  const linhaKpi = (chave, ano, rows, prev) => {
+    const fat = soma(rows, 'faturamento'), ped = soma(rows, 'pedidos');
+    const melhor = maxBy(rows, 'faturamento');
+    const out = {ano: chave, faturamento: fat, pedidos: ped, ticket_medio: fat / ped, melhor, periodo: `${rows[0].rotulo} a ${rows[rows.length - 1].rotulo}`, cmp: null};
+    if (prev && prev.length) {
+      const meses = rows.map((d) => d.mes).filter((m) => prev.some((p) => p.mes === m));
+      if (meses.length) {
+        const a = rows.filter((d) => meses.includes(d.mes)), b = prev.filter((d) => meses.includes(d.mes));
+        const fa = soma(a, 'faturamento'), fb = soma(b, 'faturamento'), pa = soma(a, 'pedidos'), pb = soma(b, 'pedidos');
+        out.cmp = {faixa: faixa(meses), fa, fb, pa, pb, ta: fa / pa, tb: fb / pb};
+      }
+    }
+    return out;
+  };
+  const anos = [...new Set(mensal.map((d) => d.ano))];
+  const KPIS = {todos: linhaKpi('todos', null, mensal, null)};
+  anos.forEach((ano) => { KPIS[String(ano)] = linhaKpi(String(ano), ano, mensal.filter((d) => d.ano === ano), mensal.filter((d) => d.ano === ano - 1)); });
+
+  const anual = anos.map((ano) => {
+    const rows = mensal.filter((d) => d.ano === ano), f = soma(rows, 'faturamento');
+    return {ano, meses: rows.length, faturamento: f, media_mensal: f / rows.length};
+  });
+
+  const totProd = soma(DADOS.produtos, 'total_vendido');
+  const produtos = DADOS.produtos.map((d) => ({...d, preco_medio: d.total_vendido / d.quantidade, participacao: d.total_vendido / totProd}));
+  const totEmpresa = soma(mensal, 'faturamento');
+  const clientes = DADOS.clientes.map((d) => ({...d, ticket_medio: d.faturamento_total / d.pedidos_realizados, participacao: d.faturamento_total / totEmpresa}));
+  const totVend = soma(DADOS.vendedores, 'faturamento_total');
+  const vendedores = DADOS.vendedores.map((d) => ({...d, ticket_medio: d.faturamento_total / d.pedidos_realizados_total, participacao: d.faturamento_total / totVend}));
+
+  // ---------- estado ----------
+  const S = {ano: 'todos', mesMetric: 'faturamento', prodLimit: '10', vendMetric: 'faturamento_total'};
+  const TS = {anual: {sort: 'ano', dir: 'asc', q: ''}, prod: {sort: 'total_vendido', dir: 'desc', q: ''}, cli: {sort: 'faturamento_total', dir: 'desc', q: ''}};
+  const CLS = {Alto: 'var(--navy)', Medio: 'var(--navy-2)', Baixo: 'var(--bar-muted)'};
+
+  // ---------- textos fixos ----------
+  const porRec = produtos.slice().sort((a, b) => b.total_vendido - a.total_vendido);
+  setText('lead-top10', F.pct.format(porRec.slice(0, 10).reduce((s, d) => s + d.participacao, 0)));
+  setText('lead-lider', porRec[0].produto);
+  setText('lead-lider-share', F.pct.format(porRec[0].participacao));
+  const porCli = clientes.slice().sort((a, b) => b.faturamento_total - a.faturamento_total);
+  const totCli = soma(clientes, 'faturamento_total');
+  setText('lead-top3', F.pct.format(porCli.slice(0, 3).reduce((s, d) => s + d.faturamento_total, 0) / totCli));
+  setText('lead-clientes', F.int.format(clientes.length));
+  const porVend = vendedores.slice().sort((a, b) => b.faturamento_total - a.faturamento_total);
+  setText('lead-vend', porVend[0].nome_funcionario);
+  setText('lead-vend-share', F.pct.format(porVend[0].participacao));
+
+  // ---------- SVG e escalas ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const sv = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => e.setAttribute(k, v));
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const niceTicks = (max, count) => {
+    const raw = (max || 1) / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map((s) => s * mag).find((s) => s >= raw);
+    const top = Math.ceil((max || 1) / step) * step;
+    const t = [];
+    for (let v = 0; v <= top + step / 2; v += step) t.push(v);
+    return t;
+  };
+  const textWidth = (svg, s, cls) => {
+    const t = sv('text', cls ? {class: cls} : {}, svg);
+    t.textContent = s;
+    const w = t.getComputedTextLength();
+    svg.removeChild(t);
+    return w;
+  };
+  // Curva monotônica (mesmo método do d3.curveMonotoneX)
+  const monotone = (pts) => {
+    const n = pts.length;
+    if (n < 2) return '';
+    if (n === 2) return `M${pts[0][0]},${pts[0][1]}L${pts[1][0]},${pts[1][1]}`;
+    const sign = (x) => (x < 0 ? -1 : 1);
+    const t = new Array(n).fill(0);
+    for (let i = 1; i < n - 1; i++) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+      const h0 = x1 - x0, h1 = x2 - x1, s0 = (y1 - y0) / h0, s1 = (y2 - y1) / h1, p = (s0 * h1 + s1 * h0) / (h0 + h1);
+      t[i] = (sign(s0) + sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), 0.5 * Math.abs(p)) || 0;
+    }
+    const h = pts[1][0] - pts[0][0];
+    t[0] = (3 * (pts[1][1] - pts[0][1]) / h - t[1]) / 2;
+    const hl = pts[n - 1][0] - pts[n - 2][0];
+    t[n - 1] = (3 * (pts[n - 1][1] - pts[n - 2][1]) / hl - t[n - 2]) / 2;
+    let d = `M${pts[0][0]},${pts[0][1]}`;
+    for (let i = 0; i < n - 1; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], dx = (x1 - x0) / 3;
+      d += `C${x0 + dx},${y0 + dx * t[i]} ${x1 - dx},${y1 - dx * t[i + 1]} ${x1},${y1}`;
+    }
+    return d;
+  };
+
+  // ---------- tooltip ----------
+  const makeTip = (box) => { const t = document.createElement('div'); t.className = 'tip off'; box.appendChild(t); return t; };
+  const showTip = (box, tip, ev, title, lines) => {
+    tip.replaceChildren();
+    const h = document.createElement('div'); h.className = 'tip-title'; h.textContent = title; tip.appendChild(h);
+    lines.forEach(([n, v]) => {
+      const r = document.createElement('div'); r.className = 'tip-row';
+      const a = document.createElement('span'); a.textContent = n;
+      const b = document.createElement('b'); b.textContent = v;
+      r.append(a, b); tip.appendChild(r);
+    });
+    tip.classList.remove('off');
+    const rect = box.getBoundingClientRect();
+    const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+    const w = tip.offsetWidth, hh = tip.offsetHeight, W = box.clientWidth;
+    let left = px + 14; if (left + w > W) left = px - w - 14; left = Math.max(0, Math.min(left, W - w));
+    let top = py - hh - 10; if (top < 0) top = py + 18;
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  };
+  const hideTip = (tip) => tip.classList.add('off');
+
+  // ---------- gráfico mensal (colunas + onda) ----------
+  function drawMensal() {
+    const box = $('#chart-mensal');
+    box.replaceChildren();
+    const m = S.mesMetric;
+    const rows = mensal.filter((d) => S.ano === 'todos' || String(d.ano) === S.ano);
+    if (!rows.length) return;
+    const fmtAxis = m === 'pedidos' ? F.int : F.brlc;
+    const W = Math.max(300, box.clientWidth || 640), H = 320, mb = 42, mt = 14, mr = 6;
+    const svg = sv('svg', {width: '100%', viewBox: `0 0 ${W} ${H}`}, box);
+    const ticks = niceTicks(Math.max(...rows.map((d) => d[m])), 5);
+    const top = ticks[ticks.length - 1];
+    const y = (v) => (H - mb) - (v / top) * (H - mb - mt);
+    const ml = Math.max(...ticks.map((t) => textWidth(svg, fmtAxis.format(t)))) + 10;
+    const n = rows.length, pi = 0.3, po = 0.15;
+    const step = (W - mr - ml) / (n - pi + 2 * po), bandW = step * (1 - pi);
+    const start = ml + ((W - mr - ml) - step * (n - pi)) / 2;
+    const bx = (i) => start + i * step;
+    const cx = (i) => bx(i) + bandW / 2;
+    const bw = Math.min(32, bandW), off = (bandW - bw) / 2;
+    ticks.forEach((t) => {
+      sv('line', {x1: ml, x2: W - mr, y1: y(t), y2: y(t), style: 'stroke:var(--grid)'}, svg);
+      const tx = sv('text', {x: ml - 8, y: y(t), dy: '0.32em', 'text-anchor': 'end'}, svg); tx.textContent = fmtAxis.format(t);
+    });
+    const bars = rows.map((d, i) => sv('rect', {class: 'bar', x: bx(i) + off, width: bw, y: y(d[m]), height: Math.max(0, y(0) - y(d[m])), rx: 3,
+      style: `fill:${d.parcial ? 'var(--bar-muted)' : 'var(--navy)'}`}, svg));
+    sv('line', {x1: ml, x2: W - mr, y1: y(0), y2: y(0), style: 'stroke:var(--axis)'}, svg);
+    const idx = rows.map((d, i) => i);
+    const full = idx.filter((i) => !rows[i].parcial);
+    const pt = (i) => [cx(i), y(rows[i][m])];
+    if (full.length > 1) sv('path', {d: monotone(full.map(pt)), fill: 'none', 'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', style: 'stroke:var(--gold)'}, svg);
+    if (n > 1 && rows[n - 1].parcial) sv('path', {d: monotone([pt(n - 2), pt(n - 1)]), fill: 'none', 'stroke-width': 2, 'stroke-dasharray': '4 4', style: 'stroke:var(--gold)'}, svg);
+    const rp = step >= 16 ? 3.5 : 2.5;
+    const dots = rows.map((d, i) => sv('circle', {cx: cx(i), cy: y(d[m]), r: rp, 'stroke-width': 1.5, style: 'fill:var(--gold);stroke:var(--panel)'}, svg));
+    const every = step >= 30 ? 1 : step >= 13 ? 3 : 6;
+    rows.forEach((d, i) => {
+      if ((d.mes - 1) % every === 0) { const t = sv('text', {x: cx(i), y: H - mb + 16, 'text-anchor': 'middle'}, svg); t.textContent = NOMES[d.mes - 1]; }
+      if (i === 0 || d.mes === 1) { const t = sv('text', {x: cx(i), y: H - 6, 'text-anchor': 'middle', class: 'year'}, svg); t.textContent = String(d.ano); }
+    });
+    const tip = makeTip(box);
+    rows.forEach((d, i) => {
+      const hit = sv('rect', {x: bx(i) - (step - bandW) / 2, width: step, y: mt, height: H - mb - mt, fill: 'transparent'}, svg);
+      const enter = (ev) => {
+        bars.forEach((b, j) => b.classList.toggle('faded', j !== i));
+        dots.forEach((c, j) => c.setAttribute('r', j === i ? 5 : rp));
+        showTip(box, tip, ev, d.rotulo + (d.parcial ? ' (incompleto)' : ''), [
+          ['Faturamento', F.brl.format(d.faturamento)], ['Pedidos', F.int.format(d.pedidos)], ['Ticket médio', F.brl.format(d.ticket_medio)]]);
+      };
+      hit.addEventListener('pointerenter', enter);
+      hit.addEventListener('pointermove', enter);
+      hit.addEventListener('pointerleave', () => { bars.forEach((b) => b.classList.remove('faded')); dots.forEach((c) => c.setAttribute('r', rp)); hideTip(tip); });
+    });
+  }
+
+  // ---------- ranking de vendedores (barras deitadas) ----------
+  function drawVend() {
+    const box = $('#chart-vend');
+    box.replaceChildren();
+    const m = S.vendMetric;
+    const rows = vendedores.slice().sort((a, b) => b[m] - a[m]);
+    const fmtV = (v) => (m === 'pedidos_realizados_total' ? F.int.format(v) : F.brl.format(v));
+    const W = Math.max(260, box.clientWidth || 600), stepY = 30, pad = 4, H = rows.length * stepY + pad * 2, bh = 20;
+    const svg = sv('svg', {width: '100%', viewBox: `0 0 ${W} ${H}`}, box);
+    const lw = Math.max(...rows.map((d) => textWidth(svg, d.nome_funcionario, 'lbl')));
+    const vw = Math.max(...rows.map((d) => textWidth(svg, fmtV(d[m]), 'val')));
+    const x0 = lw + 10, x1 = Math.max(x0 + 20, W - vw - 10), vmax = Math.max(...rows.map((d) => d[m])) || 1;
+    const x = (v) => x0 + (v / vmax) * (x1 - x0);
+    const tip = makeTip(box);
+    const grupos = rows.map((d, i) => {
+      const g = sv('g', {transform: `translate(0,${pad + i * stepY})`}, svg);
+      const l = sv('text', {class: 'lbl', x: lw, y: stepY / 2, dy: '0.35em', 'text-anchor': 'end'}, g); l.textContent = d.nome_funcionario;
+      sv('rect', {class: 'bar', x: x0, y: (stepY - bh) / 2, height: bh, width: Math.max(1, x(d[m]) - x0), rx: 3, style: `fill:${CLS[d.classificacao_vendedor] || 'var(--bar-muted)'}`}, g);
+      const v = sv('text', {class: 'val', x: x(d[m]) + 6, y: stepY / 2, dy: '0.35em'}, g); v.textContent = fmtV(d[m]);
+      return g;
+    });
+    rows.forEach((d, i) => {
+      const hit = sv('rect', {width: W, height: stepY, fill: 'transparent', transform: `translate(0,${pad + i * stepY})`}, svg);
+      const enter = (ev) => {
+        grupos.forEach((g, j) => g.classList.toggle('dim', j !== i));
+        showTip(box, tip, ev, d.nome_funcionario, [
+          ['Classe', d.classificacao_vendedor], ['Faturamento', F.brl.format(d.faturamento_total)], ['Pedidos', F.int.format(d.pedidos_realizados_total)],
+          ['Ticket médio', F.brl.format(d.ticket_medio)], ['% do total', F.pct.format(d.participacao)]]);
+      };
+      hit.addEventListener('pointerenter', enter);
+      hit.addEventListener('pointermove', enter);
+      hit.addEventListener('pointerleave', () => { grupos.forEach((g) => g.classList.remove('dim')); hideTip(tip); });
+    });
+  }
+
+  // ---------- cartões ----------
+  function drawKpis() {
+    const k = KPIS[S.ano];
+    setText('kpi-fat', F.num2.format(k.faturamento));
+    setText('kpi-ped', F.int.format(k.pedidos));
+    setText('kpi-ticket', F.num2.format(k.ticket_medio));
+    setText('kpi-melhor', F.num2.format(k.melhor.faturamento));
+    setText('sub-melhor', `${k.melhor.rotulo} · ${F.int.format(k.melhor.pedidos)} pedidos`);
+    ['delta-fat', 'delta-ped', 'delta-ticket'].forEach((id) => setText(id, k.periodo));
+  }
+
+  // ---------- tabelas ----------
+  const TABLES = {
+    anual: {rows: () => anual.filter((d) => S.ano === 'todos' || String(d.ano) === S.ano), cols: [
+      {f: 'ano', fmt: 'text'}, {f: 'meses', fmt: 'int', num: 1, center: 1}, {f: 'faturamento', fmt: 'brl', num: 1}, {f: 'media_mensal', fmt: 'brl', num: 1}]},
+    prod: {rows: () => produtos, limit: () => S.prodLimit, cols: [
+      {f: 'produto', fmt: 'text', search: 1}, {f: 'total_vendido', fmt: 'brl', num: 1, bar: 1}, {f: 'quantidade', fmt: 'int', num: 1},
+      {f: 'preco_medio', fmt: 'brl', num: 1, sec: 1}, {f: 'participacao', fmt: 'pct', num: 1}]},
+    cli: {rows: () => clientes, cols: [
+      {f: 'nome_do_cliente', fmt: 'text', search: 1}, {f: 'pais', fmt: 'text', search: 1}, {f: 'pedidos_realizados', fmt: 'int', num: 1},
+      {f: 'faturamento_total', fmt: 'brl', num: 1, bar: 1}, {f: 'ticket_medio', fmt: 'brl', num: 1, sec: 1}, {f: 'participacao', fmt: 'pct', num: 1}]},
+  };
+  function drawTable(name) {
+    const cfg = TABLES[name], st = TS[name];
+    const tbody = $(`[data-tbody="${name}"]`);
+    if (!tbody) return;
+    tbody.replaceChildren();
+    const base = cfg.rows();
+    const max = {};
+    cfg.cols.filter((c) => c.bar).forEach((c) => { max[c.f] = Math.max(...base.map((d) => d[c.f])) || 1; });
+    let rows = base.slice();
+    if (st.q) rows = rows.filter((d) => cfg.cols.some((c) => c.search && String(d[c.f]).toLowerCase().includes(st.q)));
+    const sc = cfg.cols.find((c) => c.f === st.sort);
+    if (sc) rows.sort((a, b) => { const r = sc.num ? a[sc.f] - b[sc.f] : String(a[sc.f]).localeCompare(String(b[sc.f]), 'pt-BR'); return st.dir === 'asc' ? r : -r; });
+    const lim = cfg.limit ? cfg.limit() : 'all';
+    if (lim !== 'all') rows = rows.slice(0, Number(lim));
+    rows.forEach((d) => {
+      const tr = document.createElement('tr');
+      cfg.cols.forEach((c) => {
+        const td = document.createElement('td');
+        if (c.center) td.className = 'center'; else if (c.num) td.className = 'num';
+        if (c.sec) td.classList.add('sec');
+        const txt = fmt(c.fmt, d[c.f]);
+        if (c.bar) {
+          const box = document.createElement('div'); box.className = 'barcell';
+          const s = document.createElement('span'); s.textContent = txt;
+          const i = document.createElement('i'); i.style.width = `${Math.max(2, (d[c.f] / max[c.f]) * 100)}%`;
+          box.append(s, i); td.appendChild(box);
+        } else td.textContent = txt;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    $$(`[data-empty="${name}"]`).forEach((e) => e.classList.toggle('off', rows.length > 0));
+  }
+  const drawTables = () => Object.keys(TABLES).forEach(drawTable);
+
+  // ---------- controles ----------
+  const sel = $('#filtro-ano');
+  sel.append(new Option('Todos os anos', 'todos'), ...anos.map((a) => new Option(String(a), String(a))));
+  sel.addEventListener('change', () => {
+    S.ano = sel.value;
+    $$('[data-aviso]').forEach((e) => e.classList.toggle('off', S.ano === 'todos'));
+    drawKpis(); drawMensal(); drawTable('anual');
+  });
+
+  const REDRAW = {mensal: drawMensal, vend: drawVend, tabelas: drawTables};
+  $$('.seg[data-state]').forEach((seg) => {
+    seg.querySelectorAll('button[data-value]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        S[seg.dataset.state] = btn.dataset.value;
+        seg.querySelectorAll('button[data-value]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        (REDRAW[seg.dataset.redraw] || (() => {}))();
+      });
+    });
+  });
+
+  $$('table[data-table]').forEach((table) => {
+    const name = table.dataset.table;
+    table.querySelectorAll('th[data-field]').forEach((th) => {
+      th.querySelector('.sort').addEventListener('click', () => {
+        const st = TS[name], col = TABLES[name].cols.find((c) => c.f === th.dataset.field);
+        if (st.sort === th.dataset.field) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+        else { st.sort = th.dataset.field; st.dir = col && col.num ? 'desc' : 'asc'; }
+        table.querySelectorAll('th[data-field]').forEach((h) => {
+          if (h === th) h.setAttribute('aria-sort', st.dir === 'asc' ? 'ascending' : 'descending'); else h.removeAttribute('aria-sort');
+        });
+        drawTable(name);
+      });
+    });
+  });
+
+  $$('.search[data-table]').forEach((inp) => {
+    inp.addEventListener('input', () => { TS[inp.dataset.table].q = inp.value.trim().toLowerCase(); drawTable(inp.dataset.table); });
+  });
+
+  $$('.go[data-go]').forEach((btn) => {
+    btn.addEventListener('click', () => { const el = document.getElementById(btn.dataset.go); if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  });
+
+  // ---------- primeira renderização e redimensionamento ----------
+  drawKpis(); drawMensal(); drawVend(); drawTables();
+  let tmr;
+  window.addEventListener('resize', () => { clearTimeout(tmr); tmr = setTimeout(() => { drawMensal(); drawVend(); }, 120); });
+})();
+</script>
+</body>
+</html>
